@@ -17,3 +17,14 @@ targets:
 
 eval:
   ks: [1, 3, 5, 10]
+  page_col: text_context
+
+lgbm:
+  learning_rate: 0.05
+  num_leaves: 63
+  min_data_in_leaf: 30
+  feature_fraction: 0.9
+  bagging_fraction: 0.8
+  bagging_freq: 1
+  lambda_l2: 1.0
+  num_boost_round: 400
