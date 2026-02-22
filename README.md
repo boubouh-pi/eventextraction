@@ -93,3 +93,17 @@ python -m dateclf.cli fold-check --config config.yaml
 
 # Train and evaluate Date classifier
 python -m dateclf.cli train-date --config config.yaml
+
+
+## How to Run (V2) 
+
+Training Runs (Field-by-Field)
+Train one field
+Time :
+python -m dateclf.cli --config config.yaml train-field --target is_Time
+Location :
+python -m dateclf.cli --config config.yaml train-field --target is_Location
+Date :
+python -m dateclf.cli --config config.yaml train-field --target is_Date
+Train all fields sequentially :
+python -m dateclf.cli --config config.yaml train-all
