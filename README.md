@@ -99,11 +99,11 @@ python -m dateclf.cli train-date --config config.yaml
 
 Training Runs (Field-by-Field)
 Train one field
-Time :
+# Time :
 python -m dateclf.cli --config config.yaml train-field --target is_Time
-Location :
+# Location :
 python -m dateclf.cli --config config.yaml train-field --target is_Location
-Date :
+# Date :
 python -m dateclf.cli --config config.yaml train-field --target is_Date
-Train all fields sequentially :
+# Train all fields sequentially :
 python -m dateclf.cli --config config.yaml train-all
