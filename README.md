@@ -11,6 +11,22 @@ content, a structure-aware clustering groups nodes into events, and a
 the clusters the ML layer distrusts. Shipped as a FastAPI service with
 monitoring, Docker packaging, CI/CD and a Streamlit demo.
 
+**Perfect reconstitution: 67.3 % pure ML → 75.6 % with the LLM fallback, at
+an average cost of $0.001 per page.**
+
+## Live Demo
+
+The API is deployed on Render: **https://event-extraction-api.onrender.com**
+
+| Endpoint | Try it |
+|----------|--------|
+| `POST /extract` | `curl -X POST https://event-extraction-api.onrender.com/extract -H "Content-Type: application/json" -d '{"html": "<html>...</html>"}'` |
+| `GET /health` | https://event-extraction-api.onrender.com/health |
+| `GET /metrics` | https://event-extraction-api.onrender.com/metrics |
+
+Interactive OpenAPI docs: https://event-extraction-api.onrender.com/docs
+(free-tier instance — the first request after idle may take ~30 s to wake).
+
 ## Architecture
 
 ```
@@ -69,8 +85,14 @@ and `python scripts/tune_threshold.py`.
 | Perfect reconstitution — research pipeline | 62.2 % | used label-guided expansion (leaky, unavailable in production) |
 | Perfect reconstitution — ML only, before periodic clustering | 49.8 % | leakage-free baseline |
 | **Perfect reconstitution — ML only, current** | **67.3 %** | periodic clustering; beats the leaky research pipeline |
-| LLM fallback uplift (measured at the 49.8 % baseline) | 49.8 % → 67.7 % | full-benchmark cost a few cents; escalated 72.7 % of events |
+| **Perfect reconstitution — ML + LLM fallback** | **75.6 %** | measured on the full LOSO benchmark, gate @ 0.40 |
+| Average LLM cost | **$0.001 / page** | escalation limited to 11 % of events; per-request USD cap |
 | Confidence gate @ 0.40 (current default) | escalates **11 %** of events | catches 26 % of remaining ML failures for 4 % waste |
+
+For reference, the fallback measured at the pre-optimization baseline took
+49.8 % → 67.7 % but escalated 72.7 % of events — the periodic clustering plus
+the method-aware gate now deliver a better final rate at a fraction of the
+LLM spend.
 
 Per-site wins from periodic clustering: wacac 0 → 100 %, neacac_1 20 → 100 %,
 sacac_column 0 → 77 %, neacac_fall 60 → 80 %, iacac stays 100 % with 42→1
@@ -80,8 +102,8 @@ is the same physical page as `_column` with a **contradictory labeling**
 the other — no single rotation can satisfy both); gpacac has one DOM parent
 containing several events (breaks parent-atomicity); outofstate and
 neacac_spring are genuinely aperiodic (variable event length) — exactly the
-cases the LLM fallback exists for. Re-run `eval_fallback.py` with
-`OPENAI_API_KEY` to measure the post-optimization after-rate.
+cases the LLM fallback exists for, and where it earns the 67.3 % → 75.6 %
+uplift.
 
 ## Why this architecture
 
@@ -293,9 +315,28 @@ CI/CD (`.github/workflows/ci.yml`), on every push to `main`:
 One-time setup:
 - create the service on Render from `render.yaml` (Blueprint) or point a
   Docker web service at this repo
-- set `OPENAI_API_KEY` in the Render dashboard
-- add the repo secret `RENDER_DEPLOY_HOOK_URL` (and optionally the repo
-  variable `RENDER_SERVICE_URL` for the post-deploy health poll)
+- set `OPENAI_API_KEY` in the Render dashboard (declared `sync: false` in
+  `render.yaml`, so it never lives in the repo)
+- configure the deploy hook secret (below)
+
+### Configuring `RENDER_DEPLOY_HOOK_URL`
+
+The deploy hook URL is a **secret credential generated per service by
+Render** — it is deliberately *not* in `render.yaml` or anywhere else in the
+repo, because anyone holding it can trigger deployments. Wire it up once:
+
+1. Render dashboard → your service (`event-extraction-api`) → **Settings** →
+   **Deploy Hook** → copy the URL (looks like
+   `https://api.render.com/deploy/srv-XXXXXXXX?key=YYYYYYYY`).
+2. GitHub repo → **Settings** → **Secrets and variables** → **Actions** →
+   **New repository secret** → name `RENDER_DEPLOY_HOOK_URL`, value = the
+   copied URL.
+3. Optional: **Variables** tab → new repository variable
+   `RENDER_SERVICE_URL` = `https://event-extraction-api.onrender.com` — the
+   workflow then polls `/health` after each deploy until the service is green.
+
+If the hook URL ever leaks, regenerate it in Render (same Settings page) and
+update the GitHub secret.
 
 ## Configuration
 
