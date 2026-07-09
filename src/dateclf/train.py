@@ -1,6 +1,5 @@
 """
 Simplified event extraction pipeline.
-No graph clustering, no router, no NER, no over-engineering.
 Just: detection → clustering → field extraction → validation.
 """
 from __future__ import annotations
@@ -936,11 +935,15 @@ def train_simple_pipeline(config_path: str = "config.yaml") -> Dict[str, Any]:
     print(f"{'='*60}")
     
     # Node-level
+    print(f"\n{'='*50}")
+    print("MÉTRIQUES AU NIVEAU DU NŒUD")
+    print(f"{'='*50}")
+    print(f"{'K':<5} {'Précision@K':<22} {'Rappel@K'}")
+    print("-"*50)
     for k in ks:
         ps = [r.metrics_at_k[k]['precision'] for r in all_results]
         rs = [r.metrics_at_k[k]['recall'] for r in all_results]
-        print(f"P@{k:2d}={np.mean(ps):.3f}±{np.std(ps):.3f}  "
-              f"R@{k:2d}={np.mean(rs):.3f}±{np.std(rs):.3f}")
+        print(f"{k:<5} {np.mean(ps):.3f} ± {np.std(ps):.3f}       {np.mean(rs):.3f} ± {np.std(rs):.3f}")
     
     # Clustering
     aris = [r.ari for r in all_results]

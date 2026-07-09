@@ -1,0 +1,16 @@
+# Render Blueprint — creates the web service from the Dockerfile.
+# OPENAI_API_KEY must be set in the Render dashboard (sync: false keeps
+# the secret out of the repo).
+services:
+  - type: web
+    name: event-extraction-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LLM_CONFIDENCE_THRESHOLD
+        value: "0.40"
+      - key: LLM_MAX_COST_PER_REQUEST
+        value: "0.05"

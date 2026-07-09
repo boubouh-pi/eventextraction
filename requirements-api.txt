@@ -1,0 +1,6 @@
+# Production API layer (on top of requirements.txt)
+fastapi>=0.110
+uvicorn[standard]>=0.29
+openai>=1.30
+beautifulsoup4>=4.12
+lxml>=5.0

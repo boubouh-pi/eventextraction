@@ -1,0 +1,69 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt -r requirements-api.txt -r requirements-dev.txt
+
+      # The labeled data (data/raw) is not committed, so CI cannot retrain.
+      # Tests run against the committed models/ artifacts — the same ones
+      # shipped in the Docker image.
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t event-extraction-api .
+
+      - name: Smoke test container
+        run: |
+          docker run -d --rm -p 8000:8000 --name api event-extraction-api
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8000/health; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:8000/health | grep -q '"model_loaded":true'
+          docker stop api
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render deploy
+        # Render pulls the repo and builds the Dockerfile itself; the hook
+        # just tells it a new commit is ready.
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+
+      - name: Wait for health check
+        if: vars.RENDER_SERVICE_URL != ''
+        run: |
+          echo "Waiting for ${{ vars.RENDER_SERVICE_URL }}/health"
+          for i in $(seq 1 30); do
+            if curl -fsS "${{ vars.RENDER_SERVICE_URL }}/health" | grep -q '"status":"ok"'; then
+              echo "Deploy healthy."; exit 0
+            fi
+            sleep 10
+          done
+          echo "Service did not become healthy in time"; exit 1
